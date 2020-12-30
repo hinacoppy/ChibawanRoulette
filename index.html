@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+  <meta name="description" content="Chiba wan Roulette">
+  <meta name="author" content="(C)hinacoppy 2021">
+  <link rel="stylesheet" href="css/chibawan.css">
+  <link rel="icon" href="icon/favicon.ico">
+  <link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
+  <title>Chiba wan Roulette</title>
+<style>
+body {
+  background-color: #eff;
+}
+input {
+  font-size: 100%;
+}
+table {
+  display: inline-block;
+  border-collapse: collapse;
+  border: solid 2px #00a;
+  text-align: left;
+  max-height: 50vh;
+  overflow-y: scroll;
+}
+th, td {
+  border: solid 1px black;
+  text-align: left;
+}
+th {
+  background-color: #ffe;
+}
+.td_name {
+  width: 30vw;
+}
+.td_point {
+  width: 10vw;
+}
+.td_no {
+  width: 5vw;
+}
+.td_card {
+  width: 30vw;
+}
+.td_dice {
+  width: 10vw;
+}
+.navbtn {
+  font-size: 120%;
+  margin-right: 1em;
+}
+.selectedcard {
+  display: inline-block;
+  font-size: 600%;
+  text-align: center;
+  background-color: #bec;
+  border: double 4px #50f;
+  width: 90vw;
+  height: 40vh;
+  line-height: 40vh;
+}
+</style>
+</head>
+
+<body>
+<section id="setting">
+<h3>ちばわんポイントルーレットアプリ - ポイント登録</h3>
+<p>各人の獲得ポイントを登録します</p>
+<button id="btn_addline" class="navbtn">行追加</button>
+<button id="btn_deleteall" class="navbtn">エントリ全削除</button>
+<button id="btn_roulette1" class="navbtn">ルーレット画面 →</button>
+<hr>
+<table>
+ <thead>
+  <tr>
+   <th class="td_name">名前</th>
+   <th class="td_point">ポイント数</th>
+  </tr>
+ </thead>
+ <tbody id="chibawanentry_list"></tbody>
+</table>
+</section>
+
+<section id="roulette">
+<h3>ちばわんポイントルーレットアプリ - ルーレット</h3>
+<p>ルーレットを回してカードを引き、ダイスの出目を登録します</p>
+<button id="btn_settings" class="navbtn">← ポイント登録画面</button>
+<button id="btn_roll_roulette" class="navbtn">ルーレットを回す</button>
+<button id="btn_showlist" class="navbtn">選択カードリスト画面 →</button>
+<hr>
+<div id="selectedcard" class="selectedcard"></div>
+<div>ダイス入力：
+<select id="selectdice" name="selectdice" required>
+<option value="">選択してください</option>
+<option value="11">11</option>
+<option value="12">12</option>
+<option value="13">13</option>
+<option value="14">14</option>
+<option value="15">15</option>
+<option value="16">16</option>
+<option value="22">22</option>
+<option value="23">23</option>
+<option value="24">24</option>
+<option value="25">25</option>
+<option value="26">26</option>
+<option value="33">33</option>
+<option value="34">34</option>
+<option value="35">35</option>
+<option value="36">36</option>
+<option value="44">44</option>
+<option value="45">45</option>
+<option value="46">46</option>
+<option value="55">55</option>
+<option value="56">56</option>
+<option value="66">66</option>
+</select>
+<button id="btn_setdice">ダイス登録</button>
+<input type="hidden" id="chusenkenbango">
+</div>
+<div id="chusenkeninfo"></div>
+</section>
+
+<section id="listing">
+<h3>ちばわんポイントルーレットアプリ - 選択カードリスト</h3>
+<p>選択されたカードと出目のリストを表示します</p>
+<button id="btn_roulette2" class="navbtn">← ルーレット画面</button>
+<button id="btn_delete_selectedcardlist" class="navbtn">リストを全削除</button>
+<hr>
+<table>
+ <thead>
+  <tr>
+   <th class="td_no">#</th>
+   <th class="td_card">選択カード</th>
+   <th class="td_dice">ダイス出目</th>
+  </tr>
+ </thead>
+ <tbody id="selectedcard_list"></tbody>
+</table>
+</section>
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+<!-- <script src="js/chibawan.js"></script> -->
+<script>
+/**
+ * chibawan.js
+ * description: Chiba wan Roulette">
+ * author: (C)hinacoppy 2021
+ */
+//ローカルストレージから登録情報を取出す
+var chibawanlist = JSON.parse(localStorage.getItem("chibawanlist")) || [];
+var selectedcardlist = JSON.parse(localStorage.getItem("selectedcardlist")) || [];
+var chusenken = [];
+
+//広域変数
+var chibawanlength = chibawanlist.length;
+var rolling = true;
+var editdirty = false;
+var chusenkenrolled = false;
+var timerid;
+
+//最初は設定画面を表示
+$("#setting,#roulette,#listing").hide();
+$("#setting").show();
+disp_chibawanlist();
+
+$(function() {
+//ポイント登録画面
+  //[ルーレット画面]ボタン(ポイント登録→ルーレット)
+  $("#btn_roulette1").on("click", function(e){
+    $("#setting,#roulette,#listing").hide();
+    $("#roulette").show();
+    if (editdirty) {
+      make_chibawanlist();
+      set_chusenken(); //抽選券を作る
+      selectedcardlist = [];
+      localStorage.setItem("chibawanlist", JSON.stringify(chibawanlist));
+      localStorage.removeItem("selectedcardlist");
+      $("#selectedcard").text("");
+    } else {
+      set_chusenken(); //抽選券を作る
+      remove_selected_chusenken();  //選択カードリストに登録されているカードを外す
+    }
+    disp_chusenkeninfo();
+    editdirty = false;
+  });
+
+  //[行追加]ボタン
+  $("#btn_addline").on("click", function(e){
+    editdirty = true;
+    add_line(chibawanlength);
+    chibawanlength += 1;
+  });
+
+  //[エントリ全削除]ボタン
+  $("#btn_deleteall").on("click", function(e){
+    if (confirm("本当に削除してよろしいですか?")) {
+      delete_allentries();
+    }
+  });
+
+  //ポイント登録画面で内容が変更されたら
+  $(document).on("change", ".edit", function(e){
+    editdirty = true;
+  });
+
+//ルーレット画面
+  //[設定画面]ボタン
+  $("#btn_settings").on("click", function(e){
+    $("#setting,#roulette,#listing").hide();
+    $("#setting").show();
+    disp_chibawanlist(); //ちばわんリストを表示
+  });
+
+  //[リスト表示]ボタン
+  $("#btn_showlist").on("click", function(e){
+    $("#setting,#roulette,#listing").hide();
+    $("#listing").show();
+    disp_selectedcardlist(); //選択カードリストを表示
+  });
+
+  //[ルーレットを回す]ボタン
+  $("#btn_roll_roulette,#selectedcard").on("click", function(e){
+    if (chusenken.length == 0) {
+      alert("抽選券がありません");
+      return;
+    }
+    const button_title = rolling ? "ルーレットを止める" : "ルーレットを回す";
+    $("#btn_roll_roulette").text(button_title);
+    if (rolling) {
+      //ルーレットが回っているときは、ボタンを無効化
+      $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", true);
+      timerid = setInterval(random_show_card, 200); //カードをランダムで表示
+    } else {
+      $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", false); //ボタン有効化
+      clearTimeout(timerid); //タイマーを止めてカードを固定
+      $("#selectdice").val("");
+      chusenkenrolled = true;
+    }
+    rolling = !rolling;
+  });
+
+  //[ダイス登録]ボタン
+  $("#btn_setdice").on("click", function(e){
+    if (chusenkenrolled) {
+      set_dice();
+      disp_chusenkeninfo();
+      $("#selectdice").val("");
+    } else {
+      console.log("ルーレットが回っていない");
+    }
+  });
+
+//選択カードリスト画面
+  //[ルーレット画面]ボタン(選択カードリスト→ルーレット)
+  $("#btn_roulette2").on("click", function(e){
+    $("#setting,#roulette,#listing").hide();
+    $("#roulette").show();
+    //何もしない
+  });
+
+  //[選択カードリストを削除]ボタン
+  $("#btn_delete_selectedcardlist").on("click", function(e){
+    if (confirm("本当に削除してよろしいですか?")) {
+      delete_allselectedcardlist();
+      set_chusenken();
+      disp_chusenkeninfo();
+    }
+  });
+});
+
+function make_chibawanlist() {
+  chibawanlist = [];
+  for (let n = 0; n < chibawanlength; n++) {
+    const name = $("#name_" + n).val();
+    const point = parseInt($("#point_" + n).val());
+    if ( !!name && point > 0) { //!!name は 空文字列、undefinedのとき false
+      chibawanlist.push({"name": name, "point": point});
+    }
+  }
+  chibawanlist.sort((a, b) => (b.point - a.point)); //pointの降順でソート
+  chibawanlength = chibawanlist.length;
+}
+
+function calc_chusenkensum() {
+  let sum = 0;
+  for (const entry of chibawanlist) {
+    sum += entry.point;
+  }
+  return sum;
+}
+
+function disp_chusenkeninfo() {
+  const chusenken_sum = calc_chusenkensum();
+  const chusensu = selectedcardlist.length;
+  const zan = (chusenken_sum - chusensu)
+  const info = "抽選券総数＝" + chusenken_sum + "、抽選数＝" + chusensu + "、残＝" + zan;
+  $("#chusenkeninfo").text(info);
+}
+
+function set_chusenken() {
+  //chbawanlistからすべての挑戦券を作る
+  chusenken = [];
+  for (const entry of chibawanlist) {
+    for (let i = 0; i < entry.point; i++) {
+      const card = entry.name + "-" + String(i + 1);
+      chusenken.push(card);
+    }
+  }
+}
+
+function remove_selected_chusenken() {
+  //選択カードリストに登録されているカードを外す
+  for (const selected of selectedcardlist) {
+    const card = selected.card;
+    const result = chusenken.some((item, idx) => {
+      if (item === card) {
+        chusenken.splice(idx, 1); //cardに一致する要素を削除
+      }
+      return (item === card); //返値は使わない
+    });
+  }
+}
+
+function delete_allentries() {
+  chibawanlist = [];
+  selectedcardlist = [];
+  localStorage.removeItem("chibawanlist");
+  localStorage.removeItem("selectedcardlist");
+  disp_chibawanlist();
+}
+
+function delete_allselectedcardlist() {
+  selectedcardlist = [];
+  localStorage.removeItem("selectedcardlist");
+  disp_selectedcardlist();
+}
+
+function random_show_card() {
+  const n = Math.floor( Math.random() * chusenken.length );
+  $("#selectedcard").text(chusenken[n]);
+  $("#chusenkenbango").val(n); //hidden field
+}
+
+function set_dice() {
+  const dice = $("#selectdice").val();
+  if (dice == "") {
+    alert("ダイス目を選択してください");
+    return;
+  }
+  const n = parseInt($("#chusenkenbango").val());
+  const selectedcard = {"card": chusenken[n], "dice": dice };
+  selectedcardlist.push(selectedcard);
+  chusenken.splice(n, 1);
+  localStorage.setItem("selectedcardlist", JSON.stringify(selectedcardlist));
+  chusenkenrolled = false;
+}
+
+function add_line(n) {
+  const tr = make_toroku_tr(n, "", "");
+  $("#chibawanentry_list").append(tr);
+}
+
+function disp_chibawanlist() {
+  $("#chibawanentry_list").text("");
+  let n = 0;
+  for (const entry of chibawanlist) {
+    const tr = make_toroku_tr(n, entry.name, entry.point);
+    $("#chibawanentry_list").append(tr);
+    n += 1;
+  }
+}
+
+function make_toroku_tr(n, name, point) {
+  let tr = "<tr><td><input type='text' id='name_" + n + "' value='" + name + "' class='edit td_name'></td>";
+  tr += "<td><input type='number' id='point_" + n + "' value='" + point + "' class='edit td_point'></td></tr>";
+  return tr;
+}
+
+function disp_selectedcardlist() {
+  $("#selectedcard_list").text("");
+  let n = 1;
+  for (const selectedcard of selectedcardlist) {
+    let tr  = "<tr><td>" + n + "</td>";
+    tr += "<td>" + selectedcard.card + "</td>";
+    tr += "<td>" + selectedcard.dice + "</td></tr>";
+    $("#selectedcard_list").append(tr);
+    n += 1;
+  }
+}
+</script>
+</body>
+</html>
