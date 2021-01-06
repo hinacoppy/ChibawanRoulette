@@ -26,7 +26,7 @@ table {
   border-collapse: collapse;
   border: solid 2px #00a;
   text-align: left;
-  max-height: 50vh;
+  max-height: 70vh;
   overflow-y: scroll;
 }
 th, td {
@@ -59,13 +59,18 @@ td {
   font-size: 10vw;
   text-align: center;
   background-color: #eff; /* bodyと同色 */
-  border: double 6px #50f;
-  width: 90vw;
+  border: double 10px #50f;
+  width: 97vw;
   height: 50vh;
   line-height: 50vh;
+  transition: all 400ms 0s ease; /* ルーレットが止まった時にfont-sizeを拡大(10vw→13vw)*/
 }
 .stored {
   background-color: #aaa;
+}
+.flash {
+  font-size: 13vw;
+  background-color: #fd0; /* goldっぽい色 */
 }
 </style>
 </head>
@@ -235,13 +240,13 @@ $(function() {
     if (rollable) {
       //ルーレットが回っているときは、ボタンを無効化
       $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", true);
-      $("#roulettecard").removeClass("stored"); //登録済を解除
-      timerid = setInterval(random_show_card, 150); //カードをランダムで表示
+      $("#roulettecard").removeClass("stored flash"); //登録済を解除
+      timerid = setInterval(random_show_card, 200); //カードをランダムで表示
     } else {
       $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", false); //ボタン有効化
-      clearInterval(timerid); //タイマーを止めてカードを選択
-      $("#roulettecard").css("background-color", "");
+      $("#roulettecard").css("background-color", "").addClass("flash");
       $("#selectdice").val("");
+      clearInterval(timerid); //タイマーを止めてカードを選択
       chusenkenrolled = true;
     }
     rollable = !rollable;
@@ -333,7 +338,7 @@ function randomint(n) {
 function random_colorcode() {
   let code = "#";
   for (let i = 0; i < 3; i++) {
-    code += "abcdef"[ randomint(5) ]; //薄色だけ、f は選ばれない (#aaa -- #eee)
+    code += "9abcdef"[ randomint(6) ]; //薄色だけ、f は選ばれない (#999 -- #eee)
   }
   return code;
 }
@@ -356,8 +361,8 @@ function set_dice() {
   selectedcardlist.push(selectedcard); //選ばれた抽選券を選択カードリストに移動し、
   chusenken.splice(n, 1); //その抽選券は抽選券リストから削除
   localStorage.setItem("selectedcardlist", JSON.stringify(selectedcardlist));
+  $("#roulettecard").addClass("stored").removeClass("flash");  //背景色で登録済を表現
   chusenkenrolled = false;
-  $("#roulettecard").addClass("stored");  //背景色で登録済を表現
 }
 
 function disp_chusenkeninfo() {
