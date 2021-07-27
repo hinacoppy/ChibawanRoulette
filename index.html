@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -72,6 +72,29 @@ td {
   font-size: 13vw;
   background-color: #fd0; /* goldっぽい色 */
 }
+#dicemap {
+  display: none; /* 初期状態は非表示 */
+}
+#dicemaptable {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-collapse: collapse;
+/*  border: solid 3px #0aa;*/
+  overflow: visible;
+}
+#dicemaptable tr {
+  font-size: 4vw;
+  height: 10vh;
+  line-height: 10vh;
+  cursor: pointer;
+  text-align: center;
+}
+#dicemaptable td {
+  background-color: #fee;
+  padding: 1vh 2vw;
+}
 </style>
 </head>
 
@@ -99,36 +122,21 @@ td {
 <p>ルーレットを回してカードを引き、ダイスの出目を登録します</p>
 <button id="btn_settings">← ポイント登録画面</button>
 <button id="btn_showlist">選択カードリスト画面 →</button>
-ダイス出目：
-<select id="selectdice" name="selectdice">
-<option value="">選択</option>
-<option value="11">11</option>
-<option value="12">12</option>
-<option value="13">13</option>
-<option value="14">14</option>
-<option value="15">15</option>
-<option value="16">16</option>
-<option value="22">22</option>
-<option value="23">23</option>
-<option value="24">24</option>
-<option value="25">25</option>
-<option value="26">26</option>
-<option value="33">33</option>
-<option value="34">34</option>
-<option value="35">35</option>
-<option value="36">36</option>
-<option value="44">44</option>
-<option value="45">45</option>
-<option value="46">46</option>
-<option value="55">55</option>
-<option value="56">56</option>
-<option value="66">66</option>
-</select>
 <button id="btn_setdice">出目登録</button>
-<input type="hidden" id="chusenkenbango">
 <hr>
-<div id="roulettecard" class="roulettecard"></div>
+<div id="roulettecard" class="roulettecard">tap here</div>
 <div id="chusenkeninfo"></div>
+
+<aside id="dicemap" class="dicemap">
+<table id="dicemaptable">
+ <tr><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td><td>16</td></tr>
+ <tr><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td><td>26</td></tr>
+ <tr><td>31</td><td>32</td><td>33</td><td>34</td><td>35</td><td>36</td></tr>
+ <tr><td>41</td><td>42</td><td>43</td><td>44</td><td>45</td><td>46</td></tr>
+ <tr><td>51</td><td>52</td><td>53</td><td>54</td><td>55</td><td>56</td></tr>
+ <tr><td>61</td><td>62</td><td>63</td><td>64</td><td>65</td><td>66</td></tr>
+</table>
+</aside>
 </section>
 
 <section id="listing">
@@ -149,13 +157,15 @@ td {
 </table>
 </section>
 
-<script src="/js/jquery-3.5.1.min.js"></script>
+<script src="/js/jquery-3.6.0.min.js"></script>
 <script>
 /**
  * chibawan.js
  * description: Chiba wan Roulette">
  * author: (C)hinacoppy 2021
  */
+"use strict";
+
 //ローカルストレージから登録情報を取出す
 var chibawanlist = JSON.parse(localStorage.getItem("chibawanlist")) || [];
 var selectedcardlist = JSON.parse(localStorage.getItem("selectedcardlist")) || [];
@@ -164,9 +174,11 @@ var chusenken = [];
 //広域変数
 var chibawanlength = chibawanlist.length;
 var chusenkensousu = chusenken.length;
+var chusenkenbango;
 var rollable = true;
 var editdirty = false;
 var chusenkenrolled = false;
+var showdicemap = false;
 var timerid;
 
 //最初は設定画面を表示
@@ -233,32 +245,42 @@ $(function() {
 
   //[ルーレットカードエリア]クリックでルーレットを回す/止める
   $("#roulettecard").on("click", function(e){
+    if (showdicemap) { return; }
     if (chusenken.length == 0) {
       alert("抽選券がありません");
       return;
     }
     if (rollable) {
       //ルーレットが回っているときは、ボタンを無効化
-      $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", true);
+      $("#btn_settings,#btn_showlist,#btn_setdice").prop("disabled", true);
       $("#roulettecard").removeClass("stored flash"); //登録済を解除
       timerid = setInterval(random_show_card, 200); //カードをランダムで表示
     } else {
-      $("#btn_settings,#btn_showlist,#selectdice,#btn_setdice").prop("disabled", false); //ボタン有効化
+      $("#btn_settings,#btn_showlist,#btn_setdice").prop("disabled", false); //ボタン有効化
       $("#roulettecard").css("background-color", "").addClass("flash");
-      $("#selectdice").val("");
       clearInterval(timerid); //タイマーを止めてカードを選択
       chusenkenrolled = true;
     }
+    disp_chusenkeninfo();
     rollable = !rollable;
   });
 
   //[出目登録]ボタン
   $("#btn_setdice").on("click", function(e){
-    if (chusenkenrolled) {
-      set_dice();
-      disp_chusenkeninfo();
-    }
-    $("#selectdice").val("");
+    if (!chusenkenrolled) { return; }
+    $("#dicemap").show();
+    showdicemap = true;
+    $("#btn_settings,#btn_showlist,#btn_setdice").prop("disabled", showdicemap);
+  });
+
+  //ダイスマップの出目を選択
+  $("#dicemaptable td").on("click", function(e) {
+    const deme = $(this).text();
+    set_dice(deme);
+    $("#dicemap").hide();
+    showdicemap = false;
+    $("#btn_settings,#btn_showlist,#btn_setdice").prop("disabled", showdicemap);
+    disp_chusenkeninfo(deme);
   });
 
 //選択カードリスト画面
@@ -344,32 +366,25 @@ function random_colorcode() {
 }
 
 function random_show_card() {
-  const n = randomint(chusenken.length);
-  $("#roulettecard").text(chusenken[n]);
-  $("#chusenkenbango").val(n); //hidden field
-  $("#roulettecard").css("background-color", random_colorcode());
+  chusenkenbango = randomint(chusenken.length); //広域変数に保存
+  $("#roulettecard").css("background-color", random_colorcode()).text(chusenken[chusenkenbango]);
 }
 
-function set_dice() {
-  const dice = $("#selectdice").val();
-  if (dice == "") {
-    alert("ダイス出目を選択してください");
-    return;
-  }
-  const n = parseInt($("#chusenkenbango").val());
-  const selectedcard = {"card": chusenken[n], "dice": dice};
+function set_dice(dice) {
+  const selectedcard = {"card": chusenken[chusenkenbango], "dice": dice};
   selectedcardlist.push(selectedcard); //選ばれた抽選券を選択カードリストに移動し、
-  chusenken.splice(n, 1); //その抽選券は抽選券リストから削除
+  chusenken.splice(chusenkenbango, 1); //その抽選券は抽選券リストから削除
   localStorage.setItem("selectedcardlist", JSON.stringify(selectedcardlist));
   $("#roulettecard").addClass("stored").removeClass("flash");  //背景色で登録済を表現
   chusenkenrolled = false;
 }
 
-function disp_chusenkeninfo() {
+function disp_chusenkeninfo(deme = "") {
   const chusensu = selectedcardlist.length;
   const zan = chusenkensousu - chusensu;
   const info = "抽選券総数＝" + chusenkensousu + "、抽選数＝" + chusensu + "、残＝" + zan;
-  $("#chusenkeninfo").text(info);
+  const demeinfo = (deme == "") ? "" : "、出目＝" + deme;
+  $("#chusenkeninfo").text(info + demeinfo);
 }
 
 function add_line(n) {
